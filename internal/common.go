@@ -1,4 +1,4 @@
-package cpm
+package internal
 
 import (
 	"encoding/json"

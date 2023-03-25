@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/Mo-Fatah/cpm"
+	"github.com/Mo-Fatah/cpm/internal"
 	"github.com/spf13/cobra"
 )
 
@@ -11,7 +11,7 @@ var addCmd = &cobra.Command{
 	Short: "Add a new career page to be monitored",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		cpm.Add(args)
+		internal.Add(args)
 	},
 }
 

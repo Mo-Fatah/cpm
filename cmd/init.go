@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/Mo-Fatah/cpm"
+	"github.com/Mo-Fatah/cpm/internal"
 	"github.com/spf13/cobra"
 )
 
@@ -10,7 +10,7 @@ var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Initialize cpm directory in your home page",
 	Run: func(cmd *cobra.Command, args []string) {
-		cpm.Initialize()
+		internal.Initialize()
 	},
 }
 

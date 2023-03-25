@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/Mo-Fatah/cpm"
+	"github.com/Mo-Fatah/cpm/internal"
 	"github.com/spf13/cobra"
 )
 
@@ -10,7 +10,7 @@ var statusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Check the status of the provided career pages for any updates",
 	Run: func(cmd *cobra.Command, args []string) {
-		cpm.CheckStatus()
+		internal.CheckStatus()
 	},
 }
 
