@@ -11,7 +11,7 @@ import (
 // statusCmd represents the status command
 var statusCmd = &cobra.Command{
 	Use:   "status",
-	Short: "check the status of the provided career pages for any updates",
+	Short: "Check the status of the provided career pages for any updates",
 	Run: func(cmd *cobra.Command, args []string) {
 		cpm.CheckStatus()
 	},

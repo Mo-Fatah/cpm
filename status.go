@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 )
 
 func CheckStatus() {
@@ -11,6 +12,7 @@ func CheckStatus() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	savedJobBoards = filterJobBoards(savedJobBoards)
 
 	for _, jb := range savedJobBoards {
 		cr := NewCrawler(jb.Url)
@@ -30,7 +32,7 @@ func CheckStatus() {
 func compareJobBoards(crawler Crawler, savedJobBoard JobBoard) {
 
 	if crawler.GetHash() == savedJobBoard.Hash {
-		return
+		return // No changes
 	}
 
 	fetchedjb, _ := crawler.GetJobLinks()
@@ -45,4 +47,16 @@ func compareJobBoards(crawler Crawler, savedJobBoard JobBoard) {
 		// If jobs removed, print message in red
 		fmt.Printf("\033[31m jobs removed from: %s\033[0m\n\n", savedJobBoard.Url)
 	}
+}
+
+// remove job boards that has LastFetch value less than 24 hours
+func filterJobBoards(jobBoards []JobBoard) []JobBoard {
+	var filteredJobBoards []JobBoard
+	for _, jb := range jobBoards {
+		diff := time.Since(jb.LastFetch)
+		if diff.Hours() > 24 {
+			filteredJobBoards = append(filteredJobBoards, jb)
+		}
+	}
+	return filteredJobBoards
 }

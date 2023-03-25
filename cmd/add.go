@@ -11,7 +11,7 @@ import (
 // addCmd represents the add command
 var addCmd = &cobra.Command{
 	Use:   "add [url1] [url2] ..",
-	Short: "Add a new career page to monitor",
+	Short: "Add a new career page to be monitored",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		cpm.Add(args)
