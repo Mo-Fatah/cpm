@@ -2,17 +2,18 @@ package cpm
 
 import (
 	"fmt"
+	"log"
 	"os"
 )
 
-// var url string =
-
-var urls []string = []string{"https://www.hashicorp.com/careers/open-positions?department=Research+%26+Development&jobTypes=Software+Engineering&jobTypes=Infrastructure+Engineering",
-	"https://fly.io/jobs/"}
-
 func CheckStatus() {
-	for _, url := range urls {
-		cr := NewCrawler(url)
+	savedJobBoards, err := ReadConfigFile()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, jb := range savedJobBoards {
+		cr := NewCrawler(jb.Url)
 		if _, err := cr.Crawl(); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			continue
@@ -21,7 +22,27 @@ func CheckStatus() {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-		hashed := cr.GetHash()
-		fmt.Println(hashed)
+
+		compareJobBoards(cr, jb)
+	}
+}
+
+func compareJobBoards(crawler Crawler, savedJobBoard JobBoard) {
+
+	if crawler.GetHash() == savedJobBoard.Hash {
+		return
+	}
+
+	fetchedjb, _ := crawler.GetJobLinks()
+
+	fmt.Printf("\nThe job board %s has changed since last fetch\n", crawler.GetBoardName())
+	fmt.Print("Possible Changes: ")
+	if len(fetchedjb) > savedJobBoard.JobsCount {
+		// If new jobs added, print message in green
+		fmt.Printf("\033[32m new jobs added to: %s\033[0m\n\n", savedJobBoard.Url)
+	}
+	if len(fetchedjb) < savedJobBoard.JobsCount {
+		// If jobs removed, print message in red
+		fmt.Printf("\033[31m jobs removed from: %s\033[0m\n\n", savedJobBoard.Url)
 	}
 }

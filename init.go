@@ -20,7 +20,7 @@ func createCpmDir() string {
 	currUser, err := user.Current()
 	if err != nil {
 		spinner.Failure()
-		err = fmt.Errorf("error writing to current user: %v", err)
+		err = fmt.Errorf("error fetching the current user: %v", err)
 		log.Fatal(err)
 	}
 

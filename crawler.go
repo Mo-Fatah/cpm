@@ -3,7 +3,6 @@ package cpm
 import (
 	"crypto/sha1"
 	"encoding/hex"
-	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -22,7 +21,7 @@ func NewCrawler(url string) Crawler {
 	return Crawler{
 		Url:      url,
 		htmlBody: nil,
-		JobLinks: []string{},
+		JobLinks: nil,
 	}
 }
 
@@ -33,18 +32,6 @@ func (c *Crawler) Crawl() (io.Reader, error) {
 	}
 	c.htmlBody = response.Body
 	return response.Body, nil
-}
-
-// should be called after Crawl() and Parse()
-func (c *Crawler) GetHash() string {
-	if len(c.hashedJobs) == 0 {
-		h := sha1.New()
-		for _, job := range c.JobLinks {
-			h.Write([]byte(job))
-		}
-		c.hashedJobs = hex.EncodeToString((h.Sum(nil)))
-	}
-	return c.hashedJobs
 }
 
 // Parse the given html page and extract the relevant jobs links.
@@ -69,12 +56,38 @@ func (c *Crawler) Parse() error {
 				return
 			}
 			if isJobLink(link) {
-				fmt.Println(link) // for debuging
 				c.JobLinks = append(c.JobLinks, link)
 			}
 		}
 	})
 	return nil
+}
+
+func (c *Crawler) GetJobLinks() ([]string, error) {
+	if c.JobLinks == nil {
+		if err := c.Parse(); err != nil {
+			return nil, err
+		}
+	}
+	return c.JobLinks, nil
+}
+
+// should be called after Crawl() and Parse()
+func (c *Crawler) GetHash() string {
+	if len(c.hashedJobs) == 0 {
+		h := sha1.New()
+		for _, job := range c.JobLinks {
+			h.Write([]byte(job))
+		}
+		c.hashedJobs = hex.EncodeToString((h.Sum(nil)))
+	}
+	return c.hashedJobs
+}
+
+// extract the main name of the board from the url
+func (c *Crawler) GetBoardName() string {
+	elements := strings.Split(c.Url, "/")
+	return elements[2]
 }
 
 // check that link at the form <resource>/<id>
