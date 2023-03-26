@@ -8,6 +8,7 @@ import (
 )
 
 func CheckStatus() {
+	numOfUpdates := 0
 	savedJobBoards, err := ReadConfigFile()
 	if err != nil {
 		log.Fatal(err)
@@ -25,14 +26,21 @@ func CheckStatus() {
 			continue
 		}
 
-		compareJobBoards(cr, jb)
+		numOfUpdates += compareJobBoards(cr, jb)
+	}
+
+	if numOfUpdates == 0 {
+		fmt.Println("No changes since last fetch")
+	} else {
+		fmt.Printf("Total number of updates: %d", numOfUpdates)
 	}
 }
 
-func compareJobBoards(crawler Crawler, savedJobBoard JobBoard) {
+// return 0 if no changes, 1 if changes
+func compareJobBoards(crawler Crawler, savedJobBoard JobBoard) int {
 
 	if crawler.GetHash() == savedJobBoard.Hash {
-		return // No changes
+		return 0 // No changes
 	}
 
 	fetchedjb, _ := crawler.GetJobLinks()
@@ -47,6 +55,7 @@ func compareJobBoards(crawler Crawler, savedJobBoard JobBoard) {
 		// If jobs removed, print message in red
 		fmt.Printf("\033[31m jobs removed from: %s\033[0m\n\n", savedJobBoard.Url)
 	}
+	return 1
 }
 
 // remove job boards that has LastFetch value less than 24 hours
