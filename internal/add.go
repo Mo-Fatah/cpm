@@ -10,80 +10,86 @@ import (
 )
 
 func Add(args []string) {
+	crawlersToCommit := make([]Crawler, 0)
+	spinner := NewSpinner()
 	for _, url := range args {
-		spinner := NewSpinner()
 		spinner.Start(fmt.Sprintf("fetching info from %s  ", url))
 
 		crawler := NewCrawler(url)
 		_, err := crawler.Crawl()
 		if err != nil {
 			spinner.Failure()
-			fmt.Fprintf(os.Stderr, "error fetching job postings from %s\n%s", url, err)
+			fmt.Fprintf(os.Stderr, "error fetching job postings from %s\n%s\n", url, err)
 			continue
 		}
-
-		spinner.Success()
-
-		spinner.Start("commiting to the config repo ..  ")
-		if err = commitToRepo(crawler); err != nil {
-			spinner.Failure()
-			fmt.Fprintf(os.Stderr, "error writing to the config repo\n%s\n", err)
-			continue
-		}
+		crawlersToCommit = append(crawlersToCommit, crawler)
 		spinner.Success()
 	}
+
+	spinner.Start("writing to config file  ")
+	if err := CommitToRepo(crawlersToCommit); err != nil {
+		spinner.Failure()
+		fmt.Fprintf(os.Stderr, "error writing to config file: %s\n", err)
+		return
+	}
+	spinner.Success()
+
 }
 
-func commitToRepo(crawler Crawler) error {
+// Takes a list of crawlers, write the new job boards to the config file
+// If the job board already exists, update the LastFetch value and the job links
+func CommitToRepo(crawlers []Crawler) error {
+	newJobBoards := make([]JobBoard, 0)
+	for _, crawler := range crawlers {
+		jobLinks, _ := crawler.GetJobLinks()
+		newJobBoard := JobBoard{
+			Name:      crawler.GetBoardName(),
+			Url:       crawler.Url,
+			JobsCount: len(jobLinks),
+			Hash:      crawler.GetHash(),
+			JobLinks:  jobLinks,
+			LastFetch: time.Now(),
+		}
+		newJobBoards = append(newJobBoards, newJobBoard)
+	}
+	oldJobBoards, err := ReadConfigFile()
+	if err != nil {
+		return err
+	}
+
+	newJobBoards = mergeJobBoards(oldJobBoards, newJobBoards)
+
 	currUser, err := user.Current()
 	if err != nil {
 		return err
 	}
 	cpmConfigPath := filepath.Join(currUser.HomeDir, ".cpm", "cpmConfig.json")
-	jobLinks, err := crawler.GetJobLinks()
-	if err != nil {
-		return err
-	}
-	currJobBoards, err := ReadConfigFile()
+	data, err := json.MarshalIndent(newJobBoards, "", "  ")
 	if err != nil {
 		return err
 	}
 
-	newJobBoard := JobBoard{
-		Name:      crawler.GetBoardName(),
-		Url:       crawler.Url,
-		JobLinks:  jobLinks,
-		JobsCount: len(jobLinks),
-		Hash:      crawler.GetHash(),
-		LastFetch: time.Now(),
-	}
-
-	newJobBoards := append(currJobBoards, newJobBoard)
-
-	// open file in append mode
-	file, err := os.OpenFile(cpmConfigPath, os.O_APPEND|os.O_WRONLY, 0644)
+	err = os.WriteFile(cpmConfigPath, data, 0644)
 	if err != nil {
 		return err
 	}
-	defer file.Close()
 
-	// encode job board to json then write it to the config file
-	b, err := json.MarshalIndent(newJobBoards, "", "  ")
-	if err != nil {
-		return err
-	}
-	if err := os.WriteFile(cpmConfigPath, b, 0644); err != nil {
-		return err
-	}
-	//_, err = file.Write(b)
-	//if err != nil {
-	//	return err
-	//}
-
-	//// append a comma to the end of the file to separate the new job board from the previous one
-	//_, err = file.Write([]byte(","))
-	//if err != nil {
-	//	return err
-	//}
 	return nil
+}
+
+func mergeJobBoards(oldJobBoards []JobBoard, newJobBoards []JobBoard) []JobBoard {
+	JobBoardMap := make(map[string]JobBoard)
+	for _, jobBoard := range oldJobBoards {
+		JobBoardMap[jobBoard.Url] = jobBoard
+	}
+	for _, jobBoard := range newJobBoards {
+		JobBoardMap[jobBoard.Url] = jobBoard
+	}
+
+	mergedJobBoards := make([]JobBoard, 0)
+	for _, jobBoard := range JobBoardMap {
+		mergedJobBoards = append(mergedJobBoards, jobBoard)
+	}
+
+	return mergedJobBoards
 }

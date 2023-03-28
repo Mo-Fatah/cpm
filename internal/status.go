@@ -13,7 +13,10 @@ func CheckStatus() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	savedJobBoards = filterJobBoards(savedJobBoards)
+
+	savedJobBoards = filterOutNewFetches(savedJobBoards)
+
+	crawlersToCommit := make([]Crawler, 0)
 
 	for _, jb := range savedJobBoards {
 		cr := NewCrawler(jb.Url)
@@ -25,14 +28,18 @@ func CheckStatus() {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
-
 		numOfUpdates += compareJobBoards(cr, jb)
+
+		crawlersToCommit = append(crawlersToCommit, cr)
 	}
+
+	// Update the config file with the new LastFetch value and the new job info if any changes
+	CommitToRepo(crawlersToCommit)
 
 	if numOfUpdates == 0 {
 		fmt.Println("No changes since last fetch")
 	} else {
-		fmt.Printf("Total number of updates: %d", numOfUpdates)
+		fmt.Printf("\nTotal number of updates: %d\n", numOfUpdates)
 	}
 }
 
@@ -50,16 +57,17 @@ func compareJobBoards(crawler Crawler, savedJobBoard JobBoard) int {
 	if len(fetchedjb) > savedJobBoard.JobsCount {
 		// If new jobs added, print message in green
 		fmt.Printf("\033[32m new jobs added to: %s\033[0m\n\n", savedJobBoard.Url)
-	}
-	if len(fetchedjb) < savedJobBoard.JobsCount {
+	} else if len(fetchedjb) < savedJobBoard.JobsCount {
 		// If jobs removed, print message in red
 		fmt.Printf("\033[31m jobs removed from: %s\033[0m\n\n", savedJobBoard.Url)
+	} else {
+		fmt.Printf("\033[33m jobs might have been updated in: %s\033[0m\n\n", savedJobBoard.Url)
 	}
 	return 1
 }
 
 // remove job boards that has LastFetch value less than 24 hours
-func filterJobBoards(jobBoards []JobBoard) []JobBoard {
+func filterOutNewFetches(jobBoards []JobBoard) []JobBoard {
 	var filteredJobBoards []JobBoard
 	for _, jb := range jobBoards {
 		diff := time.Since(jb.LastFetch)
