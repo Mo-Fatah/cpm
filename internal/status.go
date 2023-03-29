@@ -8,6 +8,7 @@ import (
 )
 
 func CheckStatus() {
+
 	numOfUpdates := 0
 	savedJobBoards, err := ReadConfigFile()
 	if err != nil {
@@ -20,7 +21,7 @@ func CheckStatus() {
 
 	for _, jb := range savedJobBoards {
 		cr := NewCrawler(jb.Url)
-		if _, err := cr.Crawl(); err != nil {
+		if err := cr.Crawl(); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			continue
 		}
@@ -54,6 +55,7 @@ func compareJobBoards(crawler Crawler, savedJobBoard JobBoard) int {
 
 	fmt.Printf("\nThe job board %s has changed since last fetch\n", crawler.GetBoardName())
 	fmt.Print("Possible Changes: ")
+
 	if len(fetchedjb) > savedJobBoard.JobsCount {
 		// If new jobs added, print message in green
 		fmt.Printf("\033[32m new jobs added to: %s\033[0m\n\n", savedJobBoard.Url)
@@ -61,6 +63,7 @@ func compareJobBoards(crawler Crawler, savedJobBoard JobBoard) int {
 		// If jobs removed, print message in red
 		fmt.Printf("\033[31m jobs removed from: %s\033[0m\n\n", savedJobBoard.Url)
 	} else {
+		// job links count is the same but might have been updated, print message in yellow
 		fmt.Printf("\033[33m jobs might have been updated in: %s\033[0m\n\n", savedJobBoard.Url)
 	}
 	return 1

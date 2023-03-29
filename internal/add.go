@@ -16,7 +16,7 @@ func Add(args []string) {
 		spinner.Start(fmt.Sprintf("fetching info from %s  ", url))
 
 		crawler := NewCrawler(url)
-		_, err := crawler.Crawl()
+		err := crawler.Crawl()
 		if err != nil {
 			spinner.Failure()
 			fmt.Fprintf(os.Stderr, "error fetching job postings from %s\n%s\n", url, err)
@@ -41,7 +41,11 @@ func Add(args []string) {
 func CommitToRepo(crawlers []Crawler) error {
 	newJobBoards := make([]JobBoard, 0)
 	for _, crawler := range crawlers {
-		jobLinks, _ := crawler.GetJobLinks()
+		jobLinks, err := crawler.GetJobLinks()
+		if err != nil {
+			fmt.Println("failed here")
+			return err
+		}
 		newJobBoard := JobBoard{
 			Name:      crawler.GetBoardName(),
 			Url:       crawler.Url,

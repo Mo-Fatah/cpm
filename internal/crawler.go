@@ -1,18 +1,18 @@
 package internal
 
 import (
+	"context"
 	"crypto/sha1"
 	"encoding/hex"
-	"io"
-	"net/http"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/chromedp/chromedp"
 )
 
 type Crawler struct {
 	Url        string
-	htmlBody   io.Reader
+	queryDoc   *goquery.Document
 	hashedJobs string
 	JobLinks   []string
 }
@@ -20,35 +20,42 @@ type Crawler struct {
 func NewCrawler(url string) Crawler {
 	return Crawler{
 		Url:      url,
-		htmlBody: nil,
+		queryDoc: nil,
 		JobLinks: nil,
 	}
 }
 
-func (c *Crawler) Crawl() (io.Reader, error) {
-	response, err := http.Get(c.Url)
+func (c *Crawler) Crawl() error {
+	ctx, cancel := chromedp.NewContext(context.Background())
+	defer cancel()
+	var htmlContent string
+	err := chromedp.Run(ctx,
+		chromedp.Navigate(c.Url),
+		chromedp.OuterHTML(`html`, &htmlContent, chromedp.ByQuery),
+	)
+
 	if err != nil {
-		return nil, err
+		return err
 	}
-	c.htmlBody = response.Body
-	return response.Body, nil
+
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlContent))
+	if err != nil {
+		return err
+	}
+	c.queryDoc = doc
+	return nil
 }
 
 // Parse the given html page and extract the relevant jobs links.
 // It calls Crawl if it hasn't been called yet.
 func (c *Crawler) Parse() error {
-	if c.htmlBody == nil {
-		if _, err := c.Crawl(); err != nil {
+	if c.queryDoc == nil {
+		if err := c.Crawl(); err != nil {
 			return err
 		}
 	}
 
-	doc, err := goquery.NewDocumentFromReader(c.htmlBody)
-	if err != nil {
-		return err
-	}
-
-	doc.Find("a").Each(func(i int, s *goquery.Selection) {
+	c.queryDoc.Find("a").Each(func(i int, s *goquery.Selection) {
 		link, exists := s.Attr("href")
 		if exists {
 			// Ignore mailto: and tel: links
@@ -94,15 +101,16 @@ func (c *Crawler) GetBoardName() string {
 func isJobLink(link string) bool {
 	link = strings.Trim(link, "/")
 	elements := strings.Split(link, "/")
-	if len(elements) < 2 || !isVariantOfJob(elements[0]) {
+	if len(elements) < 2 || !isVariantOfJob(link) {
 		return false
 	}
 	return true
 }
 
 // some websites call the resource job(s) and others career(s)
-func isVariantOfJob(str string) bool {
-	if str == "job" || str == "jobs" || str == "career" || str == "careers" {
+func isVariantOfJob(link string) bool {
+
+	if strings.Contains(link, "job") || strings.Contains(link, "career") || strings.Contains(link, "jobs") || strings.Contains(link, "careers") {
 		return true
 	}
 	return false
